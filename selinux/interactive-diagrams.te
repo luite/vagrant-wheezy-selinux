@@ -1,0 +1,90 @@
+policy_module(interactive-diagrams, 1.0.0)
+
+# domain types
+type idia_t;
+type idia_exec_t;
+type idia_restricted_t;
+type idia_web_t;
+type idia_web_exec_t;
+type idia_compile_t;
+
+# file types
+type idia_conf_t;
+# type idia_log_t;
+type idia_pkg_t;
+type idia_src_t;
+type idia_src_idia_t;
+type idia_usr_t;
+type idia_var_lib_t;
+type idia_var_lib_worker_t;
+type idia_var_lib_compile_t;
+type idia_var_log_t;
+type idia_var_run_t;
+type idia_var_run_worker_t;
+type idia_worker_notify_t;
+type idia_env_t;
+
+role system_r types idia_t;
+role system_r types idia_web_t;
+
+# two daemons: 
+#
+# idia_t
+#    the priviliged execution daemon, forks workers that dynamically
+#    transition to idia_restricted_t before running uploaded user
+#    code
+#
+# idia_web_t
+#    the web service, communicates with idia_t to request evaluation/compilation
+#    of code
+#
+
+init_daemon_domain(idia_t, idia_exec_t)
+init_daemon_domain(idia_web_t, idia_web_exec_t)
+
+domain_type(idia_restricted_t)
+role system_r types idia_restricted_t;
+
+domain_type(idia_compile_t)
+role system_r types idia_compile_t;
+
+domain_type(idia_worker_notify_t)
+role system_r types idia_worker_notify_t;
+
+files_config_file(idia_conf_t)
+files_type(idia_pkg_t)
+files_type(idia_src_t)
+files_type(idia_src_idia_t)
+files_type(idia_usr_t)
+files_type(idia_var_lib_t)
+files_type(idia_var_lib_worker_t)
+files_type(idia_var_lib_compile_t)
+files_type(idia_var_log_t)
+files_type(idia_var_run_t)
+files_type(idia_var_run_worker_t)
+files_type(idia_env_t)
+
+manage_files_pattern(idia_t, idia_var_lib_t, idia_var_lib_t)
+
+# idia evaluation service
+
+domain_dyntrans_type(idia_t)
+dyntrans_pattern(idia_t, idia_restricted_t)
+dyntrans_pattern(idia_t, idia_t)
+
+allow idia_t self:capability { setuid setgid kill };
+allow idia_t self:process    { fork setpgid setrlimit dyntransition };
+allow idia_t self:fd use;
+
+allow idia_restricted_t self:process { getpgid };
+
+# idia web service
+allow idia_t self:capability { net_bind_service };
+
+# hmm this doesn't seem to work
+type idia_web_port_t;
+corenet_port(idia_web_t)
+
+allow idia_web_t idia_web_port_t:tcp_socket name_bind;
+
+
